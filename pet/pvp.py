@@ -706,6 +706,16 @@ class NewsroomPVP(XSumPVP):
     pass
 
 
+class InspecPVP(SummarizationPVP):
+    def generative_prefix(self) -> Optional[str]:
+        if self.pattern_id in [0, 1]:
+            return None
+        elif self.pattern_id in [2, 3]:
+            return 'Keywords:'
+        elif self.pattern_id in [4, 5]:
+            return 'Keyphrases:'
+
+
 PVPS = {
     'agnews': AgnewsPVP,
     'mnli': MnliPVP,
@@ -732,4 +742,5 @@ PVPS = {
     'cnn-dailymail': CnnDailymailPVP,
     'newsroom': NewsroomPVP,
     'tf-newsroom': NewsroomPVP,
+    'inspec': InspecPVP,
 }

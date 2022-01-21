@@ -882,6 +882,79 @@ class NewsroomProcessor(AeslcProcessor):
     DATASET_NAME, INPUT_NAME, OUTPUT_NAME = 'newsroom', 'text', 'summary'
 
 
+class InspecProcessor(GenerativeDataProcessor):
+    DATASET_NAME = ('midas/inspec', 'raw')
+    INPUT_NAME = 'document'
+    OUTPUT_NAME = 'extractive_keyphrases'
+
+    def __init__(self):
+        self.ds = None
+
+    def _init_ds(self, data_dir: str):
+        if self.ds is not None:
+            return
+
+        if self.DATASET_NAME == 'newsroom':
+            meta_info = {'path': 'newsroom', 'data_dir': data_dir, 'cache_dir': os.path.join(data_dir, 'cache')}
+        else:
+            meta_info = self.DATASET_NAME
+        self.ds = self.load_and_split_dataset(meta_info)
+
+    def get_train_examples(self, data_dir) -> List[GenerativeInputExample]:
+        self._init_ds(data_dir)
+        return self._convert_json_to_examples(self.ds['train'], 'train')
+
+    def get_dev_examples(self, data_dir) -> List[GenerativeInputExample]:
+        self._init_ds(data_dir)
+        return self._convert_json_to_examples(self.ds['validation'], 'dev')
+
+    def get_test_examples(self, data_dir) -> List[GenerativeInputExample]:
+        self._init_ds(data_dir)
+        return self._convert_json_to_examples(self.ds['test'], 'test')
+
+    def get_unlabeled_examples(self, data_dir) -> List[GenerativeInputExample]:
+        self._init_ds(data_dir)
+        return self._convert_json_to_examples(self.ds['train'], 'unlabeled', remove_labels=True)
+
+    def _convert_json_to_examples(self, json, set_type: str, remove_labels=False) -> List[GenerativeInputExample]:
+        examples = []
+        for idx, (input_text, output_text) in enumerate(zip(json[self.INPUT_NAME], json[self.OUTPUT_NAME])):
+            examples.append(GenerativeInputExample(
+                idx=idx,
+                guid=f'{set_type}-{idx}',
+                text_a=' '.join(input_text),
+                output_text=', '.join(output_text) if not remove_labels else None
+            ))
+        return examples
+
+    @staticmethod
+    def load_and_split_dataset(dataset_name: Union[str, Tuple[str]]):
+        if isinstance(dataset_name, tuple):
+            ds = load_dataset(*dataset_name)
+        elif isinstance(dataset_name, dict):
+            ds = load_dataset(**dataset_name)
+        else:
+            ds = load_dataset(dataset_name)
+
+        if 'test' not in ds and 'validation' not in ds:
+            total_len = len(ds['train'])
+            ds_first_split = ds['train'].train_test_split(test_size=int(total_len * 0.1), seed=42)
+            ds_second_split = ds_first_split['train'].train_test_split(test_size=int(total_len * 0.1), seed=42)
+            ds = {
+                'train': ds_second_split['train'],
+                'validation': ds_second_split['test'],
+                'test': ds_first_split['test']
+            }
+        elif 'validation' not in ds:
+            ds_split = ds['train'].train_test_split(test_size=0.1, seed=42)
+            ds = {
+                'train': ds_split['train'],
+                'validation': ds_split['test'],
+                'test': ds['test']
+            }
+        return ds
+
+
 PROCESSORS = {
     "mnli": MnliProcessor,
     "mnli-mm": MnliMismatchedProcessor,
@@ -908,6 +981,7 @@ PROCESSORS = {
     "reddit-tifu": RedditTifuProcessor,
     "cnn-dailymail": CnnDailymailProcessor,
     "newsroom": NewsroomProcessor,
+    "inspec": InspecProcessor,
 }  # type: Dict[str,Callable[[],DataProcessor]]
 
 TASK_HELPERS = {
@@ -926,6 +1000,7 @@ METRICS = {
     "reddit-tifu": ["rouge1", "rouge2", "rougeL"],
     "cnn-dailymail": ["rouge1", "rouge2", "rougeL"],
     "newsroom": ["rouge1", "rouge2", "rougeL"],
+    "inspec": ["f1", "rouge1", "rouge2", "rougeL"],
 }
 
 DEFAULT_METRICS = ["acc"]
