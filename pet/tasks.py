@@ -1000,7 +1000,7 @@ METRICS = {
     "reddit-tifu": ["rouge1", "rouge2", "rougeL"],
     "cnn-dailymail": ["rouge1", "rouge2", "rougeL"],
     "newsroom": ["rouge1", "rouge2", "rougeL"],
-    "inspec": ["f1", "rouge1", "rouge2", "rougeL"],
+    "inspec": ["rouge1", "rouge2", "rougeL"],
 }
 
 DEFAULT_METRICS = ["acc"]
